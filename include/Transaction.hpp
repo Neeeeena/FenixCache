@@ -6,6 +6,7 @@
 # include <UUID.hpp>
 # include <FileSystem.hpp>
 # include <Key.hpp>
+# include <Serializable.hpp>
 
 class Transaction
 {
@@ -37,15 +38,14 @@ class Transaction
   }
 
   bool
-  lookup(register uint8_t* const         destination,
+  lookup(register Serializable&          destination,
          register uint_fast16_t&         size,
          register enum TransactionError& error,
          register const Key              key);
   
   bool
   insert(register enum TransactionError& error,
-         register const uint8_t* const   source,
-         register const uint_fast16_t    size,
+         register const Serializable&    source,
          register const Key              key);
 
   bool
@@ -64,7 +64,7 @@ class Transaction
 
   class BlockCacheEntry*
   allocatedEntries;
-		   
+   
   inline
   Transaction()
   {

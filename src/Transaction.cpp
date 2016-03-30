@@ -1,10 +1,13 @@
 #include <Transaction.hpp>
 
+#include <Serializable.hpp>
+
 #include <BPlusTree.hpp>
 #include <BlockCacheEntry.hpp>
 
+
 bool
-Transaction::lookup(register uint8_t* const         destination,
+Transaction::lookup(register Serializable&          destination,
                     register uint_fast16_t&         size,
                     register enum TransactionError& error,
                     register const Key              key)
@@ -23,8 +26,7 @@ Transaction::lookup(register uint8_t* const         destination,
 
 bool
 Transaction::insert(register enum TransactionError&         error,
-                    register const uint8_t* const           source,
-                    register const uint_fast16_t            size,
+                    register const Serializable&            source,
                     register const Key                      key)
 {
  register enum BPlusTree::BPlusTreeError bPlusTreeError;
@@ -33,7 +35,7 @@ Transaction::insert(register enum TransactionError&         error,
 
  register const BPlusTree* oldTree = currentTree;
 
- if(!oldTree->insert(currentTree, bPlusTreeError, source, size, key, this))
+ if(!oldTree->insert(currentTree, bPlusTreeError, source, key, this))
   assert(0);
 
  if (oldTree != originalTree)

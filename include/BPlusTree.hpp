@@ -12,6 +12,9 @@
 # include <BlockCache.hpp>
 # include <FileSystem.hpp>
 # include <Transaction.hpp>
+# include <Serializable.hpp>
+
+# include <RawData.hpp>
 
 class BPlusTree
 {
@@ -22,20 +25,19 @@ class BPlusTree
   {
    noError = 0,
    keyNotFound,
-   dataTooBig
+   dataTooBig,
+   sizeIsNotAcceptable
   };
 
   inline bool
-  lookup(register uint8_t* const           destination,
+  lookup(register Serializable&            destination,
          register uint_fast16_t&           size,
          register enum BPlusTreeError&     error,
          register const Key                key,
-	 register class Transaction* const transaction) const
+         register class Transaction* const transaction) const
   {
    register BlockCacheEntry* cacheEntry;
    register enum BlockCache::BlockCacheError cacheError;
-
-   assert(destination);
 
    if (!BlockCache::getInstance().readLookup(cacheEntry, cacheError, transaction, rootDevice, rootLBA))
    {
@@ -49,17 +51,14 @@ class BPlusTree
 
   inline bool
   insert(register const BPlusTree* &       newTree,
-	 register enum BPlusTreeError&     error,
-         register const uint8_t* const     source,
-         register const uint_fast16_t      size,
+         register enum BPlusTreeError&     error,
+         register const Serializable&      source,
          register const Key                key,
          register class Transaction* const transaction) const
   {
    register BlockCacheEntry* cacheEntry;
    register enum BlockCache::BlockCacheError cacheError;
 
-   assert(source);
-   assert(size);
    assert(transaction);
 
    if (!BlockCache::getInstance().readLookup(cacheEntry, cacheError, transaction, rootDevice, rootLBA))
@@ -71,7 +70,7 @@ class BPlusTree
 
    register struct LBA newLBA;
    
-   if (!insertOrRemove(newLBA, error, cacheEntry, source, size, key, transaction, false))
+   if (!insertOrRemove(newLBA, error, cacheEntry, source, key, transaction, false))
    {
     assert(0);
    }
@@ -88,7 +87,7 @@ class BPlusTree
 
   inline bool
   remove(register const BPlusTree* &       newTree,
-	 register enum BPlusTreeError&     error,
+         register enum BPlusTreeError&     error,
          register const Key                key,
          register class Transaction* const transaction) const
   {
@@ -105,8 +104,9 @@ class BPlusTree
    assert(cacheEntry);
    
    register struct LBA newLBA;
+   register class RawData dummy;   
    
-   if (insertOrRemove(newLBA, error, cacheEntry, 0, 0, key, transaction, true))
+   if (insertOrRemove(newLBA, error, cacheEntry, dummy, key, transaction, true))
    {
     assert(0);
    }
@@ -165,13 +165,13 @@ class BPlusTree
   /*! Build a new root. This is only used for some initial tests. The
       constructor will be removed. */
   BPlusTree(register class VirtualBlockDevice* const device,
-	    register class FileSystem* const         fileSystem,
-	    register class Transaction* const        transaction);
+            register class FileSystem* const         fileSystem,
+            register class Transaction* const        transaction);
 
   /* Actual constructor for most situations. */
   inline
   BPlusTree(register class VirtualBlockDevice* const device,
-	    register const struct LBA                theLBA)
+           register const struct LBA                theLBA)
   {
    rootDevice = device;
    rootLBA    = theLBA;
@@ -179,8 +179,8 @@ class BPlusTree
   
   static inline bool
   equalKey(register const struct key* const keyStruct,
-	   register const Key               key,
-	   register const bool              isLittle)
+           register const Key               key,
+           register const bool              isLittle)
   { 
    return ((key.type == keyStruct->type) &&
            (key.major == fromFileSystemEndian(&(keyStruct->major), isLittle)) &&
@@ -189,8 +189,8 @@ class BPlusTree
 
   static inline bool
   higherKey(register const struct key* const keyStruct,
- 	    register const Key               key,
-	    register const bool              isLittle)
+            register const Key               key,
+            register const bool              isLittle)
   {
    register bool higher = key.type  > keyStruct->type;
 
@@ -207,11 +207,11 @@ class BPlusTree
   
   static inline bool
   search(register unsigned int&           returnedKeyIndex,
-	 register const struct key* const keyArray,         
-	 register const unsigned int      keys,
-	 register const bool              isLeaf,
-	 register const bool              isLittle,
-	 register const Key               key)
+         register const struct key* const keyArray,         
+         register const unsigned int      keys,
+         register const bool              isLeaf,
+         register const bool              isLittle,
+         register const Key               key)
   {
    returnedKeyIndex = 0;
     
@@ -243,7 +243,7 @@ class BPlusTree
     else
     {
      right = middle - 1;
-    }	
+    }
    }
 
    returnedKeyIndex = left;
@@ -259,12 +259,12 @@ class BPlusTree
   }
   
   static inline bool
-  lookup(register uint8_t* const           destination,
+  lookup(register Serializable&            destination,
          register uint_fast16_t&           size,
          register enum BPlusTreeError&     error,
          register BlockCacheEntry*         cacheEntry,
-	 register const Key                key,
-	 register class Transaction* const transaction)
+         register const Key                key,
+         register class Transaction* const transaction)
   {
    register uint8_t* data = cacheEntry->getDataPointer();
    register bool found = false;
@@ -285,9 +285,9 @@ class BPlusTree
 
    register unsigned int keyIndex;
    found = search(keyIndex,
-		  (const struct key*) (data + sizeof(struct header) +
-				       (isLeaf ? 0 :  sizeof(struct firstLocation))),
-		  keys, isLeaf, isLittle, key);
+                 (const struct key*) (data + sizeof(struct header) +
+                                             (isLeaf ? 0 :  sizeof(struct firstLocation))),
+                 keys, isLeaf, isLittle, key);
 
    if (!found)
    {
@@ -306,15 +306,20 @@ class BPlusTree
 
      register const uint16_t dataSize = fromFileSystemEndian(&(key->size), isLittle);
 
-     if (size < dataSize)
+     size  = dataSize;
+
+     if (destination.size() < dataSize)
      {
       error = dataTooBig;
       found = false;
      }
+     else if (!destination.isSizeAcceptable(dataSize))
+     {
+      error = sizeIsNotAcceptable;
+      found = false;
+     }
      else
      {
-      size = dataSize;
-      
       register const uint16_t offset = fromFileSystemEndian(&(key->offset), isLittle);
 
       if (key->isLocation)
@@ -323,15 +328,12 @@ class BPlusTree
        assert(0);
       }
       else
-      {	
+      {
        assert(offset <= sectorSize);
        assert((offset + dataSize) <= sectorSize);
 
-       if (dataSize)
-       {
-        assert(destination);
-        memcpy(destination, data+offset, dataSize);
-       }
+       if (!destination.fromFileSystem(data+offset, dataSize, isLittle))
+        assert(0);
       }
       
       error = noError;
@@ -351,13 +353,12 @@ class BPlusTree
   
   inline bool
   insertOrRemove(register struct LBA &             newLBA,
-	         register enum BPlusTreeError&     error,
-	         register BlockCacheEntry*         cacheEntry,
-                 register const uint8_t* const     source,
-                 register const uint_fast16_t      size,
+                 register enum BPlusTreeError&     error,
+                 register BlockCacheEntry*         cacheEntry,
+                 register const Serializable&      source,
                  register const Key                key,
                  register class Transaction* const transaction,
-		 register const bool               remove) const
+                 register const bool               remove) const
   {
    uint8_t* data = cacheEntry->getDataPointer();
 
@@ -377,9 +378,9 @@ class BPlusTree
 
    register unsigned int keyIndex;
    register bool found = search(keyIndex,
-		                (const struct key*) (data + sizeof(struct header) +
-				                     (isLeaf ? 0 :  sizeof(struct firstLocation))),
-		                keys, isLeaf, isLittle, key);
+                                (const struct key*) (data + sizeof(struct header) +
+                                                          (isLeaf ? 0 :  sizeof(struct firstLocation))),
+                                keys, isLeaf, isLittle, key);
 
    register bool success = false;
    
@@ -401,9 +402,9 @@ class BPlusTree
      assert(keyIndex <= keys);
 
      register uint16_t     dataSpace = fromFileSystemEndian(&(((struct header*)data)->spaceUsedNFlags),
-							    isLittle) & (sectorSize-1);
+                                                            isLittle) & (sectorSize-1);
      register unsigned int usedSpace = sizeof(struct header) +
-				       (isLeaf ? 0 :  sizeof(struct firstLocation)) +
+                                        (isLeaf ? 0 :  sizeof(struct firstLocation)) +
                                         keys * sizeof(struct key) +
                                         dataSpace;
 
@@ -420,8 +421,8 @@ class BPlusTree
      
      if (!remove)
      {
-      if (usedSpace + 2*sizeof(struct key) + size - existingSize > sectorSize)
-	/* Need to split node. */
+      if (usedSpace + 2*sizeof(struct key) + source.size() - existingSize > sectorSize)
+       /* Need to split node or place data in a new sector. */
        assert(0);
      }
 
@@ -463,12 +464,12 @@ class BPlusTree
       newKeys->type = key.type;
       newKeys->isLocation = 0;
 
-      assert(size >= 0);
-      assert(size < sectorSize);
+      assert(source.size() >= 0);
+      assert(source.size() < sectorSize);
 
-      toFileSystemEndian(&newKeys->size, size, isLittle);
+      toFileSystemEndian(&newKeys->size, source.size(), isLittle);
 
-      newSize += size;
+      newSize += source.size();
 
       register const uint16_t offset = sectorSize - newSize;
 
@@ -476,7 +477,8 @@ class BPlusTree
       
       toFileSystemEndian(&newKeys->offset, offset, isLittle);
 
-      memcpy(newNodeData + offset, source, size);
+      if(!source.toFileSystem(newNodeData + offset, isLittle))
+       assert(0);
      }
      else
      {  
@@ -485,13 +487,13 @@ class BPlusTree
        if (index == keyIndex)
        {
         if (remove)
-	{
-	 assert(newNbrOfKeys > 0);
-	 newNbrOfKeys--;
+        {
+         assert(newNbrOfKeys > 0);
+         newNbrOfKeys--;
          /* We have earlier tested for the error case: remove && !found. */
- 	 continue;
+         continue;
         }
-	
+
         newNbrOfKeys++;
 
         toFileSystemEndian(&newKeys->major, key.major, isLittle);
@@ -499,12 +501,12 @@ class BPlusTree
         newKeys->type = key.type;
         newKeys->isLocation = 0;
 
-        assert(size >= 0);
-        assert(size < sectorSize);
+        assert(source.size() >= 0);
+        assert(source.size() < sectorSize);
 
-        toFileSystemEndian(&newKeys->size, size, isLittle);
+        toFileSystemEndian(&newKeys->size, source.size(), isLittle);
 
-        newSize += size;
+        newSize += source.size();
 
         register const uint16_t offset = sectorSize - newSize;
 
@@ -512,13 +514,14 @@ class BPlusTree
       
         toFileSystemEndian(&newKeys->offset, offset, isLittle);
 
-        memcpy(newNodeData + offset, source, size);
+        if (!source.toFileSystem(newNodeData + offset, isLittle))
+         assert(0);
 
         newKeys++;	 
        
         if (found)
- 	 /* replace the existing <key, value> */ 
-	 continue;
+         /* replace the existing <key, value> */ 
+         continue;
        }
       
        *newKeys = *oldKeys;
@@ -540,7 +543,7 @@ class BPlusTree
 
        memcpy(newNodeData + offset, data + oldOffset, oldSize);
 
-       newKeys++;	 
+       newKeys++;
       }
      }
 
@@ -554,7 +557,7 @@ class BPlusTree
      newHeader->keys    = newNbrOfKeys;
      /*! \todo transfer root flag from old entry. */
      toFileSystemEndian(&newHeader->spaceUsedNFlags,
-			newSize | BPlusTree::isRoot | BPlusTree::isLeaf, isLittle);
+                        newSize | BPlusTree::isRoot | BPlusTree::isLeaf, isLittle);
 
      register enum FileSystem::FileSystemError fileSystemError;
 

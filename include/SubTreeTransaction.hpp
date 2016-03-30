@@ -1,4 +1,4 @@
-#ifndef SUBTREETRANSACTION_HPP
+#ifndef  SUBTREETRANSACTION_HPP
 # define SUBTREETRANSACTION_HPP
 
 # include <assert.h>
@@ -7,6 +7,11 @@
 # include <SubTreeBlobKey.hpp>
 # include <Transaction.hpp>
 # include <Key.hpp>
+# include <Serializable.hpp>
+
+# include <RawData.hpp>
+# include <SubTreeCount.hpp>
+# include <SubTreeMetaData.hpp>
 
 class SubTreeTransaction : protected Transaction
 {
@@ -20,7 +25,7 @@ class SubTreeTransaction : protected Transaction
   
   inline bool
   allocateBlob(register struct SubTreeBlobKey&          returnedKey,
-	       register enum SubTreeTransactionError&   error,
+               register enum SubTreeTransactionError&   error,
                register const enum SubTreeBlobKey::Type subTreeType)
   {
    /*! \todo replace this dummy implementation. */
@@ -38,7 +43,7 @@ class SubTreeTransaction : protected Transaction
              register uint_fast16_t&                size,
              register enum SubTreeTransactionError& error,
              register const struct SubTreeBlobKey   key,
-	     register const uint_fast64_t           minor)
+             register const uint_fast64_t           minor)
   {
    /*! \todo update this dummy implementation */
    register struct Key treeKey;
@@ -49,7 +54,9 @@ class SubTreeTransaction : protected Transaction
 
    enum Transaction::TransactionError transactionError;
 
-   if (!Transaction::lookup(destination, size, transactionError, treeKey))
+   register RawData rawData(destination, size);
+
+   if (!Transaction::lookup(rawData, size, transactionError, treeKey))
     assert(0);
      
    assert(transactionError == Transaction::noError);
@@ -63,7 +70,7 @@ class SubTreeTransaction : protected Transaction
              register const uint8_t* const          source,
              register const uint_fast16_t           size,
              register const struct SubTreeBlobKey   key,
-	     register const uint_fast64_t           minor)
+             register const uint_fast64_t           minor)
   {
    /*! \todo update this dummy implementation */
    register struct Key treeKey;
@@ -74,7 +81,9 @@ class SubTreeTransaction : protected Transaction
 
    enum Transaction::TransactionError transactionError;
 
-   if (!Transaction::insert(transactionError, source, size, treeKey))
+   register const RawData rawData((uint8_t*)source, size);
+
+   if (!Transaction::insert(transactionError, rawData, treeKey))
     assert(0);
      
    assert(transactionError == Transaction::noError);
@@ -95,7 +104,7 @@ class SubTreeTransaction : protected Transaction
   
  private:
   unsigned int
-  bitsUsed;
+  majorBitsUsed;
 
   uint64_t
   subTreeMajor;
@@ -107,63 +116,44 @@ class SubTreeTransaction : protected Transaction
   inline
   SubTreeTransaction()
   {
-   bitsUsed      = 0;
+   majorBitsUsed = 0;
    subTreeMajor  = 0;
    allocatedBlob = false;
   }
 
   inline bool
   reinit(register class FileSystem* const fileSystem,
-	 register const struct UUID       subTreeUUID)
+         register const struct UUID       subTreeUUID)
   {
    if (!Transaction::reinit(fileSystem))
     assert(0);
 
+   register SubTreeCount  count;
+   register uint_fast16_t size;
+
    /* Search through the meta data searching for the sub tree meta data. */
-
-   uint64_t               subTreeCount = 0;
-   register uint_fast16_t size = sizeof(subTreeCount);
-
    register enum TransactionError transactionError;
-   register struct Key key = {.type  = FileSystem::fileSystemMetaDataType,
-                              .major = FileSystem::fileSystemMetaDataMajor,
-                              .minor = FileSystem::subTreeCount};             
 
-   /*! \todo add template methods for accessing meta data. */
-   if (!Transaction::lookup((uint8_t*)&subTreeCount, size, transactionError, key))
+   if (!Transaction::lookup(count, size, transactionError, count.getKey()))
     assert(0);
 
-   assert(size == sizeof(subTreeCount));
    assert(transactionError == Transaction::noError);
 
-   for(register uint64_t index = 0; index < subTreeCount; index++)
+   for(register uint64_t index = 0; index < count.getCount(); index++)
    {
-    struct SubTreeMetaData
-    {
-     UUID     theUUID;
-     uint64_t subTreeMajor;
-     uint8_t  bits;
-    } metaData;
-
-    key.type  = FileSystem::fileSystemMetaDataType;
-    key.major = FileSystem::fileSystemSubTreeKeyList;
-    key.minor = index;
-
-    size = sizeof(metaData);
+    register SubTreeMetaData metaData;
     
-    /*! \todo add template methods for accessing meta data. */
-    if (Transaction::lookup((uint8_t*)&metaData, size, transactionError, key))
+    if (Transaction::lookup(metaData, size, transactionError, metaData.getKey(index)))
     {
      assert(transactionError == Transaction::noError);
-     assert(size == sizeof(metaData));
 
-     if ((metaData.theUUID.major == subTreeUUID.major) &&
-	 (metaData.theUUID.minor == subTreeUUID.minor))
+     if ((metaData.getUUID().major == subTreeUUID.major) &&
+         (metaData.getUUID().minor == subTreeUUID.minor))
      {
-      this->subTreeMajor = metaData.subTreeMajor;
-      this->bitsUsed     = metaData.bits;
+      this->subTreeMajor  = metaData.getSubTreeMajor();
+      this->majorBitsUsed = metaData.getMajorBitsUsed();
 
-      assert(this->bitsUsed);
+      assert(this->majorBitsUsed);
       return true;
      }
     }   

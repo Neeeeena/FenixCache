@@ -56,13 +56,7 @@ class FileSystem
 
  private:
   static const uint8_t      rawDataType              = 0;
-  static const uint8_t      fileSystemMetaDataType   = 1;
 
-  static const uint64_t     fileSystemMetaDataMajor  = 0;
-  static const uint64_t     fileSystemSubTreeKeyList = 1;
-
-  static const uint64_t     subTreeCount             = 0;
-  
   struct UUID               myUUID;
   class VirtualBlockDevice* blockDevice;
   const class BPlusTree*    currentTree;

@@ -3,6 +3,9 @@
 #include <VirtualBlockDeviceBroker.hpp>
 #include <BPlusTree.hpp>
 
+#include <SubTreeMetaData.hpp>
+#include <SubTreeCount.hpp>
+
 FileSystem::FileSystem(register const UUID theFSUUID,
                        register const UUID theVirtualBlockDeviceUUID)
 {
@@ -14,8 +17,8 @@ FileSystem::FileSystem(register const UUID theFSUUID,
  brokerError;
    
  if (!VirtualBlockDeviceBroker::getInstance().getVirtualBlockDevice(blockDevice,
-	 							    brokerError,
-								    theVirtualBlockDeviceUUID))
+                                                                    brokerError,
+                                                                    theVirtualBlockDeviceUUID))
  {
   /*! \todo add error handling. */
   assert(0);
@@ -74,34 +77,15 @@ FileSystem::FileSystem(register const UUID theFSUUID,
   /* Add empty subtree along with its meta data. */
 
   /* SubTree metadata. */
-  register struct Key key;
+  register SubTreeMetaData metaData({.major = 0x8000000000000000,
+                                     .minor = 0 }, 0, 4);
 
-  key.type  = fileSystemMetaDataType;
-  key.major = fileSystemSubTreeKeyList;
-  key.minor = 0;
-
-  struct SubTreeMetaData
-  {
-   UUID     theUUID;
-   uint64_t subTreeMajor;
-   uint8_t  bits;
-  } metaData =
-  {
-   {0x8000000000000000, 0},
-   0,
-   4
-  };
-
-  if(!transaction->insert(transactionError, (uint8_t*) &metaData, sizeof(metaData), key))
+  if(!transaction->insert(transactionError, metaData, metaData.getKey(0)))
    assert(0);
 
-  key.type  = fileSystemMetaDataType;
-  key.major = fileSystemMetaDataMajor;
-  key.minor = subTreeCount;
+  register SubTreeCount count(1);
 
-  const uint64_t count = 1;
-
-  if(!transaction->insert(transactionError, (uint8_t*) &count, sizeof(count), key))
+  if(!transaction->insert(transactionError, count, count.getKey()))
    assert(0);
   
   /* Try to end transaction. */
