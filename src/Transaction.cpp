@@ -17,7 +17,19 @@ Transaction::lookup(register Serializable&          destination,
  assert(currentTree);
 
  if(!currentTree->lookup(destination, size, bPlusTreeError, key, this))
-  assert(0);
+ {
+  switch(bPlusTreeError)
+  {
+   case BPlusTree::keyNotFound:
+    error = keyNotFound;
+    break;
+
+   default:  
+    assert(0);
+  }
+
+  return false;
+ }
 
  error = noError;
  return true; 

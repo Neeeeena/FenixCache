@@ -1,3 +1,10 @@
+/* Copyright (c) 1997-2016, FenixOS Developers
+   All Rights Reserved.
+
+   This file is subject to the terms and conditions defined in
+   file 'LICENSE', which is part of this source code package.
+ */
+
 #ifndef TRANSACTIONMANAGER_HPP
 # define TRANSACTIONMANAGER_HPP
 
@@ -27,8 +34,8 @@ class TransactionManager
   inline bool
   startSubTreeTransaction(register SubTreeTransaction* &         returnedTransaction,
                           register enum TransactionManagerError& error,
-		          register class FileSystem* const       fileSystem,
-		          register const struct UUID             subTreeUUID)
+                          register class FileSystem* const       fileSystem,
+                          register const struct UUID             subTreeUUID)
   {
    /*! \todo make this more efficient. */
    for(register unsigned int i = 0; i < maxSubTreeTransactions; i++)
@@ -43,6 +50,9 @@ class TransactionManager
      returnedTransaction = &subTreeTransactions[i].transaction;
      
      error = noError;
+ 
+     SubTreeObserverManager::getInstance().notifyStartTransaction(returnedTransaction, subTreeUUID);
+     
      return true;	
     }
    }
@@ -76,6 +86,7 @@ class TransactionManager
     return false;
    }
 
+   SubTreeObserverManager::getInstance().notifyEndTransaction(transactionPtr);
    if (!transactionPtr->end())
     assert(0);
    

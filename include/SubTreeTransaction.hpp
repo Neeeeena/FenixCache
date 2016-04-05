@@ -1,3 +1,10 @@
+/* Copyright (c) 1997-2016, FenixOS Developers
+   All Rights Reserved.
+
+   This file is subject to the terms and conditions defined in
+   file 'LICENSE', which is part of this source code package.
+ */
+
 #ifndef  SUBTREETRANSACTION_HPP
 # define SUBTREETRANSACTION_HPP
 
@@ -12,6 +19,8 @@
 # include <RawData.hpp>
 # include <SubTreeCount.hpp>
 # include <SubTreeMetaData.hpp>
+
+# include <SubTreeObserverManager.hpp>
 
 class SubTreeTransaction : protected Transaction
 {
@@ -49,7 +58,7 @@ class SubTreeTransaction : protected Transaction
    register struct Key treeKey;
 
    treeKey.type  = FileSystem::rawDataType;
-   treeKey.major = key.major;
+   treeKey.major = subTreeMajor | key.major;
    treeKey.minor = minor;
 
    enum Transaction::TransactionError transactionError;
@@ -62,6 +71,8 @@ class SubTreeTransaction : protected Transaction
    assert(transactionError == Transaction::noError);
 
    error = noError;
+
+   SubTreeObserverManager::getInstance().notifyLookup(this, size, subTreeMajor, key.major, minor);
    return true;
   }
 
@@ -76,7 +87,7 @@ class SubTreeTransaction : protected Transaction
    register struct Key treeKey;
 
    treeKey.type  = FileSystem::rawDataType;
-   treeKey.major = key.major;
+   treeKey.major = subTreeMajor | key.major;
    treeKey.minor = minor;
 
    enum Transaction::TransactionError transactionError;
@@ -89,6 +100,7 @@ class SubTreeTransaction : protected Transaction
    assert(transactionError == Transaction::noError);
 
    error = noError;
+   SubTreeObserverManager::getInstance().notifyInsert(this, size, subTreeMajor, key.major, minor);
    return true;
   }
 
@@ -97,9 +109,23 @@ class SubTreeTransaction : protected Transaction
          register const struct SubTreeBlobKey   key,
          register const uint_fast64_t           minor)
   {
-   assert(0);
+   /*! \todo update this dummy implementation */
+   register struct Key treeKey;
 
-   return false;
+   treeKey.type  = FileSystem::rawDataType;
+   treeKey.major = subTreeMajor | key.major;
+   treeKey.minor = minor;
+
+   enum Transaction::TransactionError transactionError;
+
+   if (!Transaction::remove(transactionError, treeKey))
+    assert(0);
+     
+   assert(transactionError == Transaction::noError);
+
+   error = noError;
+   SubTreeObserverManager::getInstance().notifyRemove(this, subTreeMajor, key.major, minor);
+   return true;
   }
   
  private:

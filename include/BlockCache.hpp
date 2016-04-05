@@ -1,3 +1,10 @@
+/* Copyright (c) 1997-2016, FenixOS Developers
+   All Rights Reserved.
+
+   This file is subject to the terms and conditions defined in
+   file 'LICENSE', which is part of this source code package.
+ */
+
 #ifndef BLOCKCACHE_HPP
 # define BLOCKCACHE_HPP
 
@@ -25,97 +32,33 @@ class BlockCache
   readLookup(register BlockCacheEntry* &              returnedCacheEntry,
              register enum BlockCacheError&           error,
              register const class Transaction* const  transaction,
-	     register class VirtualBlockDevice* const device,
+             register class VirtualBlockDevice* const device,
              register const struct LBA                theLBA)
   {
-   register unsigned int hashIndex = calculateHashIndex(device,
-							theLBA); 
-   
-   assert(hashIndex < (BlockCacheEntry::maxLocations * cacheEntries));
-
-   for(;
-       hashBuckets[hashIndex];
-       hashIndex = (hashIndex + 1) % (BlockCacheEntry::maxLocations * cacheEntries))
-   {
-    for(register unsigned int location = 0;
-        location < BlockCacheEntry::maxLocations;
-        location++)
-    {
-     if (hashBuckets[hashIndex]->locations[location].valid &&
-	 (hashBuckets[hashIndex]->locations[location].device == device) &&
-	 (hashBuckets[hashIndex]->locations[location].lba.theLBA == theLBA.theLBA))
-      goto done;
-    }
-   }
-
-done:
-   if (hashBuckets[hashIndex])
-   {
-    assert(!hashBuckets[hashIndex]->locked);
-
-    if (hashBuckets[hashIndex]->allocated &&
-        (hashBuckets[hashIndex]->transaction != transaction))
-     assert(0);
-   
-    hashBuckets[hashIndex]->lock();
-    hashBuckets[hashIndex]->accessed = true;
-   
-    returnedCacheEntry = hashBuckets[hashIndex];
-    error = noError;
-    return true;
-   }
-
-   /* Load the sector. */
-   register unsigned int index = findEntry();
-   
-   assert(index < cacheEntries);
-
-   entries[index].lock();
-   entries[index].allocated = false;
-   entries[index].accessed  = true;
-   entries[index].dirty     = false;
-   entries[index].leader    = false;
-   
-   register enum VirtualBlockDevice::VirtualBlockDeviceError blockError;
-
-   assert(device);
-       
-   if (!device->readSector(blockError, &entries[index], theLBA))
-   {
-    assert(0);
-   }
-
-   assert(blockError == VirtualBlockDevice::noError);
-
-   entries[index].setLBA(device, theLBA);
-   
-   returnedCacheEntry = &entries[index];
-   error = noError;
-   return true;
+   return lookup(returnedCacheEntry, error, transaction, device, theLBA, false);
   }
    
 
   inline bool
-  readWriteLookup(register const BlockCacheEntry* &        returnedCacheEntry,
+  readWriteLookup(register BlockCacheEntry* &              returnedCacheEntry,
                   register enum BlockCacheError&           error,
-		  register const class Transaction* const  transaction,
-  	          register class VirtualBlockDevice* const device,
+                  register const class Transaction* const  transaction,
+                  register class VirtualBlockDevice* const device,
                   register const struct LBA                theLBA)
   {
-   assert(0);
-
-   return false;  
+   return lookup(returnedCacheEntry, error, transaction, device, theLBA, true);
   }
 
   inline bool
   allocate(register BlockCacheEntry* &             returnedCacheEntry,
            register enum BlockCacheError&          error,
-	   register const class Transaction* const transaction)
+           register const class Transaction* const transaction)
   {
    register unsigned int index = findEntry();
 
    assert(index < cacheEntries);
 
+   entries[index].locked    = 0;
    entries[index].lock();
    entries[index].allocated = true;
    entries[index].accessed  = true;
@@ -129,10 +72,10 @@ done:
 
   inline void
   addToHashTable(register BlockCacheEntry* const cacheEntry,
-		 register unsigned int location)
+                 register unsigned int location)
   {
    register unsigned int hashIndex = calculateHashIndex(cacheEntry->locations[location].device,
-							cacheEntry->locations[location].lba); 
+                                                        cacheEntry->locations[location].lba); 
    
    assert(cacheEntry->locations[location].valid);
    assert((((uintptr_t) cacheEntry) & 3) == 0);
@@ -148,10 +91,10 @@ done:
 
   inline void
   removeFromHashTable(register const BlockCacheEntry* const cacheEntry,
-	  	      register unsigned int location)
+                      register unsigned int location)
   {
    register unsigned int hashIndex = calculateHashIndex(cacheEntry->locations[location].device,
-							cacheEntry->locations[location].lba); 
+                                                        cacheEntry->locations[location].lba); 
    
    assert(cacheEntry->locations[location].valid);
    assert((((uintptr_t) cacheEntry) & 3) == 0);
@@ -183,7 +126,7 @@ done:
   clockIndex;
   
   inline
-  BlockCache()
+  BlockCache(void)
   {
    clockIndex = 0;
     
@@ -234,9 +177,9 @@ done:
        assert(entries[clockIndex].locations[location].device);
        
        if (!entries[clockIndex].locations[location].device->
-	   writeSector(blockError, &entries[clockIndex], entries[clockIndex].locations[location].lba))
+             writeSector(blockError, &entries[clockIndex], entries[clockIndex].locations[location].lba))
        {
-	assert(0);
+        assert(0);
        }
 
        assert(blockError == VirtualBlockDevice::noError);
@@ -247,7 +190,7 @@ done:
        
      entries[clockIndex].dirty = false;
      continue;
-    }	
+    }
 
     for(register unsigned int location = 0; location < BlockCacheEntry::maxLocations; location++)
     {
@@ -277,6 +220,90 @@ done:
    assert(hashIndex < (BlockCacheEntry::maxLocations * cacheEntries));
 
    return hashIndex;
+  }
+
+  inline bool
+  lookup(register BlockCacheEntry* &              returnedCacheEntry,
+         register enum BlockCacheError&           error,
+         register const class Transaction* const  transaction,
+         register class VirtualBlockDevice* const device,
+         register const struct LBA                theLBA,
+         register const bool                      write)
+  {
+   register unsigned int hashIndex = calculateHashIndex(device,
+                                                        theLBA); 
+   
+   assert(hashIndex < (BlockCacheEntry::maxLocations * cacheEntries));
+
+   for(;
+       hashBuckets[hashIndex];
+       hashIndex = (hashIndex + 1) % (BlockCacheEntry::maxLocations * cacheEntries))
+   {
+    for(register unsigned int location = 0;
+        location < BlockCacheEntry::maxLocations;
+        location++)
+    {
+     if (hashBuckets[hashIndex]->locations[location].valid &&
+         (hashBuckets[hashIndex]->locations[location].device == device) &&
+         (hashBuckets[hashIndex]->locations[location].lba.theLBA == theLBA.theLBA))
+      goto done;
+    }
+   }
+
+done:
+   if (hashBuckets[hashIndex])
+   {
+    /*! \todo add readers-writer locking. */
+    assert(!hashBuckets[hashIndex]->locked);
+
+    if (hashBuckets[hashIndex]->allocated &&
+        (hashBuckets[hashIndex]->transaction != transaction))
+     assert(0);
+   
+    hashBuckets[hashIndex]->lock();
+
+    if (write)
+     hashBuckets[hashIndex]->setDirty();
+
+    hashBuckets[hashIndex]->accessed = true;
+   
+    returnedCacheEntry = hashBuckets[hashIndex];
+    error = noError;
+    return true;
+   }
+
+   /* Load the sector. */
+   register unsigned int index = findEntry();
+   
+   assert(index < cacheEntries);
+
+   entries[index].locked    = 0;
+   entries[index].lock();
+   entries[index].allocated = false;
+   entries[index].accessed  = true;
+   entries[index].dirty     = false;
+
+   if (write)
+    entries[index].setDirty();
+
+   entries[index].leader    = false;
+   
+   register enum VirtualBlockDevice::VirtualBlockDeviceError blockError;
+
+   assert(device);
+       
+   if (!device->readSector(blockError, &entries[index], theLBA))
+   {
+    assert(0);
+   }
+
+   assert(blockError == VirtualBlockDevice::noError);
+
+   entries[index].setLBA(device, theLBA);
+   
+   returnedCacheEntry = &entries[index];
+   error = noError;
+   return true;
   }
 };
 

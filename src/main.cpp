@@ -1,3 +1,10 @@
+/* Copyright (c) 1997-2016, FenixOS Developers
+   All Rights Reserved.
+
+   This file is subject to the terms and conditions defined in
+   file 'LICENSE', which is part of this source code package.
+ */
+
 #include <stdint.h>
 
 #include <BlockCache.hpp>
@@ -5,12 +12,21 @@
 #include <FileSystemManager.hpp>
 #include <OSInterface.hpp>
 #include <VirtualBlockDeviceBroker.hpp>
+#include <SubTreeObserverManager.hpp>
 
 #include <FileSystem.hpp>
 #include <SubTreeTransaction.hpp>
 #include <SubTreeBlobKey.hpp>
 
+#include <SimpleAnalyzerObserver.hpp>
+
 /* Static class members. */
+
+SubTreeObserverManager
+SubTreeObserverManager::instance;
+
+SimpleAnalyzerObserver
+observer;
 
 OSInterface
 OSInterface::instance;

@@ -1,3 +1,10 @@
+/* Copyright (c) 1997-2016, FenixOS Developers
+   All Rights Reserved.
+
+   This file is subject to the terms and conditions defined in
+   file 'LICENSE', which is part of this source code package.
+ */
+
 #ifndef FILESYSTEMMANAGER_HPP
 # define FILESYSTEMMANAGER_HPP
 
@@ -5,6 +12,8 @@
 
 # include <FileSystem.hpp>
 # include <UUID.hpp> 
+
+# include <SubTreeObserverManager.hpp>
 
 class FileSystemManager
 {
@@ -35,7 +44,7 @@ class FileSystemManager
      const struct UUID fsUUID = fileSystems[i].fileSystem->getUUID();
      
      if ((fsUUID.major == theUUID.major) &&
-	 (fsUUID.minor == theUUID.minor))
+         (fsUUID.minor == theUUID.minor))
      {
       error = noError;
       fileSystem = fileSystems[i].fileSystem;
@@ -78,6 +87,8 @@ class FileSystemManager
 					      tmpVirtualBlockDeviceUUID);
  
    assert(fileSystems[0].fileSystem);
+
+   SubTreeObserverManager::getInstance().notifyMountFileSystem(fileSystems[0].fileSystem);
 
    fileSystems[0].valid = true;
   }

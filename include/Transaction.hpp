@@ -16,7 +16,10 @@ class Transaction
  public:
   enum TransactionError
   {
-   noError = 0
+   noError = 0,
+   keyNotFound,
+   dataTooBig,
+   sizeIsNotAcceptable
   };    
 
   inline class BlockCacheEntry*
