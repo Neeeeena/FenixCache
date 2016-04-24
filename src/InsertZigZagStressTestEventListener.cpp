@@ -7,10 +7,12 @@
 
 #include <stdlib.h>
 
-#include <EventListenerManager.hpp>
+#include <InsertZigZagStressTestEventListener.hpp>
 
 int main(void)
 {
+ InsertZigZagStressTestEventListener test;
+ 
  /* Run the system proper. */
  EventListenerManager::getInstance().run(); 
  return EXIT_SUCCESS;

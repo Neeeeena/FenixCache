@@ -7,10 +7,12 @@
 
 #include <stdlib.h>
 
-#include <EventListenerManager.hpp>
+#include <TestEventListener.hpp>
 
 int main(void)
 {
+ TestEventListener test;
+ 
  /* Run the system proper. */
  EventListenerManager::getInstance().run(); 
  return EXIT_SUCCESS;

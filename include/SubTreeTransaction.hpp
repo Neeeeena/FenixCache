@@ -29,7 +29,8 @@ class SubTreeTransaction : protected Transaction
  public:
   enum SubTreeTransactionError
   {
-   noError = 0
+   noError = 0,
+   keyNotFound
   };    
   
   inline bool
@@ -66,8 +67,20 @@ class SubTreeTransaction : protected Transaction
    register RawData rawData(destination, size);
 
    if (!Transaction::lookup(rawData, size, transactionError, treeKey))
-    assert(0);
-     
+   {
+    switch(transactionError)
+    {
+     case Transaction::keyNotFound:
+      error = keyNotFound;
+     break;
+
+     default:  
+      assert(0);
+    }
+
+    return false;
+   }
+  
    assert(transactionError == Transaction::noError);
 
    error = noError;

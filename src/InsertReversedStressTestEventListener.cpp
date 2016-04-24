@@ -7,10 +7,12 @@
 
 #include <stdlib.h>
 
-#include <EventListenerManager.hpp>
+#include <InsertReversedStressTestEventListener.hpp>
 
 int main(void)
 {
+ InsertReversedStressTestEventListener test;
+ 
  /* Run the system proper. */
  EventListenerManager::getInstance().run(); 
  return EXIT_SUCCESS;

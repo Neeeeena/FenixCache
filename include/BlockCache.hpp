@@ -126,12 +126,35 @@ class BlockCache
   clockIndex;
   
   inline
-  BlockCache(void)
+  BlockCache()
   {
    clockIndex = 0;
     
    for(register unsigned int i = 0; i < BlockCacheEntry::maxLocations * cacheEntries; i++)
     hashBuckets[i] = 0;   
+  }
+
+  inline
+  ~BlockCache()
+  {
+   register bool rerun = true;
+   /* Write out all cache entries on exit. */
+
+   while(rerun)
+   {
+    rerun = false;
+
+    for(register unsigned int i = 0; i < cacheEntries; i++)
+    {
+     assert(!entries[i].locked);
+
+     while(entries[i].dirty)
+     {
+      rerun = true;
+      findEntry();
+     }
+    }
+   }
   }
 
   inline unsigned int

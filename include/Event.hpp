@@ -5,13 +5,13 @@
    file 'LICENSE', which is part of this source code package.
  */
 
-#include <stdlib.h>
+#ifndef EVENT_HPP
+# define EVENT_HPP
 
-#include <EventListenerManager.hpp>
-
-int main(void)
+/*! Base class for Events. Do not instanciate. */
+class Event
 {
- /* Run the system proper. */
- EventListenerManager::getInstance().run(); 
- return EXIT_SUCCESS;
-}
+ public:
+};
+
+#endif

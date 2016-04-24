@@ -14,6 +14,8 @@
 static const unsigned int
 sectorSize = 4096;
 
+/*! \todo add support for unaligned accesses. */
+
 #if __GNUC__
 #else
 #error Must be compiled with GNU g++

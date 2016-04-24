@@ -15,7 +15,7 @@
 class SubTreeMetaData : public Serializable
 {
  private:
-  struct MetaData
+  struct __attribute__ ((__packed__)) MetaData
   {
    UUID     theUUID;
    uint64_t subTreeMajor;

@@ -7,10 +7,12 @@
 
 #include <stdlib.h>
 
-#include <EventListenerManager.hpp>
+#include <InsertStressTestEventListener.hpp>
 
 int main(void)
 {
+ InsertStressTestEventListener test;
+ 
  /* Run the system proper. */
  EventListenerManager::getInstance().run(); 
  return EXIT_SUCCESS;

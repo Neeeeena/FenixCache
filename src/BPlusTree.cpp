@@ -32,7 +32,7 @@ BPlusTree::BPlusTree(register class VirtualBlockDevice* const device,
 
  ((struct header*) dataPointer)->version = version;
  ((struct header*) dataPointer)->keys    = 0;
- toFileSystemEndian(&((struct header*) dataPointer)->spaceUsedNFlags, 0 | isRoot | isLeaf, true);
+ toFileSystemEndian(&((struct header*) dataPointer)->spaceUsedNFlags, 0 | isLeaf, true);
 
  register enum FileSystem::FileSystemError fileSystemError;
 

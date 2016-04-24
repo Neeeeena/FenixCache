@@ -58,6 +58,26 @@ Transaction::insert(register enum TransactionError&         error,
 }
 
 bool
+Transaction::remove(register enum TransactionError&         error,
+                    register const Key                      key)
+{
+ register enum BPlusTree::BPlusTreeError bPlusTreeError;
+
+ assert(currentTree);
+
+ register const BPlusTree* oldTree = currentTree;
+
+ if(!oldTree->remove(currentTree, bPlusTreeError, key, this))
+  assert(0);
+
+ if (oldTree != originalTree)
+  delete oldTree;
+
+ error = noError;
+ return true;
+}
+
+bool
 Transaction::end(void)
 {
  assert(fileSystem);

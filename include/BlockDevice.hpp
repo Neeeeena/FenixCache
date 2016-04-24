@@ -58,7 +58,7 @@ class BlockDevice : public VirtualBlockDevice
    assert(off == sectorSize * theLBA.theLBA);
    assert(cacheEntry);
    
-   register const uint8_t* const data = cacheEntry->getDataPointer();
+   register const uint8_t* const data = cacheEntry->getDataPointerUnsafe();
  
    assert(data);
 

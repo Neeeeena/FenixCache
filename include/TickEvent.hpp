@@ -5,13 +5,14 @@
    file 'LICENSE', which is part of this source code package.
  */
 
-#include <stdlib.h>
+#ifndef TICKEVENT_HPP
+# define TICKEVENT_HPP
 
-#include <EventListenerManager.hpp>
+# include <Event.hpp>
 
-int main(void)
+class TickEvent : public Event
 {
- /* Run the system proper. */
- EventListenerManager::getInstance().run(); 
- return EXIT_SUCCESS;
-}
+ public:
+};
+
+#endif

@@ -12,6 +12,8 @@ class BlockCacheEntry
 {
  friend class BlockCache;
  friend class Transaction;
+ friend class BlockDevice;
+
  public:
   inline void
   setAsLeader(void)
@@ -26,8 +28,8 @@ class BlockCacheEntry
   /*! \todo destroy the BlockCacheEntry pointer too. */
   inline void
   unlock(register uint8_t* &               dataPointer,
-	 register class BlockCacheEntry* & entryPointer,
-	 register class Transaction* const transaction)
+         register class BlockCacheEntry* & entryPointer,
+         register class Transaction* const transaction)
   {
    assert(locked);
 
@@ -99,6 +101,12 @@ class BlockCacheEntry
    locked      = 0;
    next        = 0;
    transaction = 0;
+  }
+
+  uint8_t*
+  getDataPointerUnsafe(void)
+  {
+   return data;
   }
 
   inline void
