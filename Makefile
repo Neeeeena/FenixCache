@@ -22,6 +22,7 @@ objects/%.d: ;
 -include objects/InsertZigZagStressTestEventListener.d
 -include objects/InsertRemoveStressTestEventListener.d
 -include objects/InsertRemoveReversedStressTestEventListener.d
+-include objects/CacheTestEventListener.d
 
 main : $(patsubst %,objects/%.o,$(basename $(SRCS))) objects/main.o | devices
 	g++ $(OPTIMIZATION_FLAGS) -o $@ $?
@@ -44,6 +45,9 @@ InsertRemoveStressTestEventListener : $(patsubst %,objects/%.o,$(basename $(SRCS
 InsertRemoveReversedStressTestEventListener : $(patsubst %,objects/%.o,$(basename $(SRCS))) objects/InsertRemoveReversedStressTestEventListener.o | devices
 	g++ $(OPTIMIZATION_FLAGS) -o $@ $?
 
+CacheTestEventListener : $(patsubst %,objects/%.o,$(basename $(SRCS))) objects/CacheTestEventListener.o | devices
+	g++ $(OPTIMIZATION_FLAGS) -o $@ $?	
+
 objects : 
 	mkdir -p objects
 
@@ -52,15 +56,19 @@ devices :
 
 run : main
 	./main
+    
+cachetest : main CacheTestEventListener \
+	./CacheTestEventListener
 
 test : main TestEventListener InsertStressTestEventListener InsertReversedStressTestEventListener \
        InsertZigZagStressTestEventListener InsertRemoveStressTestEventListener \
-       InsertRemoveReversedStressTestEventListener 
+       InsertRemoveReversedStressTestEventListener CacheTestEventListener \
 	./InsertRemoveReversedStressTestEventListener
 	./InsertRemoveStressTestEventListener
 	./InsertZigZagStressTestEventListener
 	./InsertReversedStressTestEventListener
 	./InsertStressTestEventListener
+	./CacheTestEventListener
 	./TestEventListener
 	./main
 	@echo  All tests ran correctly
@@ -69,5 +77,5 @@ clean :
 	-rm -rf objects
 	-rm -f main TestEventListener InsertStressTestEventListener \
                InsertReversedStressTestEventListener InsertZigZagStressTestEventListener \
-               InsertRemoveStressTestEventListener InsertRemoveReversedStressTestEventListener
+               InsertRemoveStressTestEventListener InsertRemoveReversedStressTestEventListener CacheTestEventListener
 
